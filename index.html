@@ -1,0 +1,186 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ping检测</title>
+<link rel="stylesheet" type="text/css" href="main.css" />
+<style type="text/css">
+
+</style>
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript" src="raphael.js"></script>
+<script type="text/javascript" src="chinamapPath.js"></script>
+</head>
+
+<body>
+
+<div id="main">
+   <h2 class="top_title"><a href="#">Ping检测</a></h2>
+            <div id="label">
+            <span>高</span>
+            <span style="background-color:#005c86"></span>
+            <span style="background-color:#0084be"></span>
+            <span style="background-color:#00a2e9"></span>
+            <span style="background-color:#3fbeef"></span>
+            <span style="background-color:#97d6f5"></span>
+            <span style="background-color:#d7eef8"></span>
+            <span>低</span>
+        </div>
+   <div class="demo">
+
+   		<div id="map"></div>
+        <div id="tip"></div>
+   		
+   </div>
+	<div class="button">
+		<button>停</button>
+	</div>
+
+</div>
+
+<script type="text/javascript">
+$(function(){
+	
+	function randomShow(){
+	    var provinceCity=["aomen","hk","taiwan","guangdong","gx","hainan","yunnan","fujian","jiangxi","hunan","guizhou","zhejiang","anhui","shanghai","jiangsu","hubei","xizang","inghai","gansu","xinjiang","shanxi","henan","shanxis","shandong","hebei","tianjin","beijing","ningxia","neimeng","liaoning","jilin","heilongjiang","chongqing","sichuan","qinghai"];
+	    var n = Math.floor(Math.random() * provinceCity.length + 1)-1;
+	    var st = china[provinceCity[n]]['path'];
+	    var xx = st.getBBox().y2;
+	    var yy = st.getBBox().x2+st.getBBox().width+100;
+	    var pre_color=st.attr("fill");
+	    st.animate({fill: "yellow", stroke: "#eee"}, 500); 
+	    $("#tip").css({"top":xx+"px","left":yy+"px"}).fadeIn("fast").html("<h4>"+china[provinceCity[n]]['name']+"</h4><p>Welcome to " + provinceCity[n] + "</p>");
+	    setTimeout(function(){st.animate({fill: pre_color, stroke:"#eee" }, 1000);},1000);
+	    }
+	
+	var t = null;
+	$.get("data.txt",function(json){//ajax请求可以替换成url
+    	var data = string2Array(json);
+    	var flag;
+    	var arr = new Array();
+    	for(var i=0;i<data.length;i++){
+    		var d = data[i];
+    		if(d<100){
+    			flag = 0;
+    		}else if(d>=100 && d<500){
+    			flag = 1;
+    		}else if(d>=500 && d<2000){
+    			flag = 2;
+    		}else if(d>=2000 && d<5000){
+    			flag = 3;
+    		}else if(d>=5000 && d<10000){
+    			flag = 4;
+    		}else{
+    			flag = 5;
+    		}
+    		arr.push(flag);
+    	}
+    	var colors = ["#d7eef8","#97d6f5","#3fbeef","#00a2e9","#0084be","#005c86"];
+        var R = Raphael("map", 600, 500);
+    	
+    	//调用绘制地图方法
+        paintMap(R);
+    	
+    	var textAttr = {
+            "fill": "#000",
+            "font-size": "12px",
+            "cursor": "pointer"
+        };
+    			
+        var i = 0;
+        for (var state in china) {
+    		china[state]['path'].color = Raphael.getColor(0.9);
+            handle(china[state]['path'], state);
+    		i++;
+        }
+        //省份处理
+        function handle(st, state) {
+                //获取当前图形的中心坐标
+                var xx = st.getBBox().x + (st.getBBox().width / 2);
+                var yy = st.getBBox().y + (st.getBBox().height / 2);
+                
+                //***修改部分地图文字偏移坐标
+                switch (china[state]['name']) {
+                    case "江苏":
+                        xx += 5;
+                        yy -= 10;
+                        break;
+                    case "河北":
+                        xx -= 10;
+                        yy += 20;
+                        break;
+                    case "天津":
+                        xx += 10;
+                        yy += 10;
+                        break;
+                    case "上海":
+                        xx += 10;
+                        break;
+                    case "广东":
+                        yy -= 10;
+                        break;
+                    case "澳门":
+                        yy += 10;
+                        break;
+                    case "香港":
+                        xx += 20;
+                        yy += 5;
+                        break;
+                    case "甘肃":
+                        xx -= 40;
+                        yy -= 30;
+                        break;
+                    case "陕西":
+                        xx += 5;
+                        yy += 10;
+                        break;
+                    case "内蒙古":
+                        xx -= 15;
+                        yy += 65;
+                        break;
+                    default:
+                }
+                //写入文字
+                var prodata = data[i];
+                china[state]['text'] = R.text(xx, yy, china[state]['name']).attr(textAttr);
+                var fillcolor = colors[arr[i]];
+                st.attr({fill:fillcolor});//填充背景色
+                xOffset = 70; 
+                yOffset = 180; 
+                st.hover(function(e){//鼠标滑向 
+                    st.animate({fill: "#fdd", stroke: "#eee"}, 500); 
+                    R.safari();                 
+                    $("#tip").css({"top":(e.pageY-xOffset)+"px","left":(e.pageX-yOffset)+"px"}).fadeIn("fast") 
+                    .html("<h4>"+china[state]['name']+"</h4><p>响应时间："+prodata +"ms</p>"); 
+                },function(){//鼠标离开 
+                    st.animate({fill: fillcolor, stroke: "#eee"}, 500); 
+                    R.safari(); 
+                    $("#tip").hide(); 
+                }); 
+                 
+                st.mousemove(function(e){//鼠标移动 
+                    $("#tip").css({"top":(e.pageY-xOffset)+"px","left":(e.pageX-yOffset)+"px"}); 
+                    R.safari(); 
+                });             
+             }
+
+        //随机显示各省份信息
+        t = setInterval(randomShow,1000);
+      
+	});
+
+	$('.button button').click(function(){
+		clearInterval(t)
+	})
+});
+
+function string2Array(string) { 
+	eval("var result = " + decodeURI(string)); 
+	return result; 
+}
+		
+
+</script>
+
+</body>
+</html>
